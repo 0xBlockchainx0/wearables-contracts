@@ -3,7 +3,7 @@ import { randomBytes } from '@ethersproject/random'
 import { hexlify } from '@ethersproject/bytes'
 
 import assertRevert from '../helpers/assertRevert'
-import { getInitData, ZERO_ADDRESS, ITEMS } from '../helpers/collectionV2'
+import { getInitData, ZERO_ADDRESS, ITEMS, SALT } from '../helpers/collectionV2'
 import { expect } from 'chai'
 
 const ERC721CollectionFactoryV2 = artifacts.require('ERC721CollectionFactoryV2')
@@ -15,6 +15,7 @@ function encodeERC721Initialize(
   creator,
   shouldComplete,
   baseURI,
+  proofOfCreation,
   items
 ) {
   return web3.eth.abi.encodeFunctionCall(
@@ -44,6 +45,11 @@ function encodeERC721Initialize(
           internalType: 'string',
           name: '_baseURI',
           type: 'string',
+        },
+        {
+          internalType: 'bytes32',
+          name: '_proofOfCreation',
+          type: 'bytes32',
         },
         {
           components: [
@@ -88,7 +94,7 @@ function encodeERC721Initialize(
       stateMutability: 'nonpayable',
       type: 'function',
     },
-    [name, symbol, creator, shouldComplete, baseURI, items]
+    [name, symbol, creator, shouldComplete, baseURI, proofOfCreation, items]
   )
 }
 
@@ -157,55 +163,15 @@ describe('Factory V2', function () {
       expect(expectedCode.toLowerCase()).to.be.equal(code.toLowerCase())
       expect(web3.utils.soliditySha3(expectedCode)).to.be.equal(codeHash)
     })
-  })
 
-  describe('createCollection', function () {
-    it('should set an implementation', async function () {
-      let impl = await factoryContract.implementation()
-      expect(impl).to.be.equal(collectionImplementation.address)
-
-      const newImpl = await ERC721CollectionV2.new()
-
-      const { logs } = await factoryContract.setImplementation(
-        newImpl.address,
-        fromFactoryOwner
-      )
-
-      const expectedCode = `0x3d602d80600a3d3981f3363d3d373d3d3d363d73${newImpl.address.replace(
-        '0x',
-        ''
-      )}5af43d82803e903d91602b57fd5bf3`
-
-      expect(logs.length).to.be.equal(1)
-      expect(logs[0].event).to.be.equal('ImplementationChanged')
-      expect(logs[0].args._implementation).to.be.equal(newImpl.address)
-      expect(logs[0].args._code.toLowerCase()).to.be.equal(
-        expectedCode.toLowerCase()
-      )
-      expect(logs[0].args._codeHash).to.be.equal(
-        keccak256(['bytes'], [expectedCode])
-      )
-
-      impl = await factoryContract.implementation()
-      expect(impl).to.be.equal(newImpl.address)
-    })
-
-    it('reverts when trying to change the implementation by hacker', async function () {
-      const newImpl = await ERC721CollectionV2.new()
+    it('reverts when trying to deploy with an invalid implementation', async function () {
       await assertRevert(
-        factoryContract.setImplementation(newImpl.address, fromHacker),
-        'Ownable: caller is not the owner'
-      )
-    })
-
-    it('reverts when trying to change with an invalid implementation', async function () {
-      await assertRevert(
-        factoryContract.setImplementation(user, fromFactoryOwner),
+        ERC721CollectionFactoryV2.new(user, factoryOwner),
         'MinimalProxyFactoryV2#_setImplementation: INVALID_IMPLEMENTATION'
       )
 
       await assertRevert(
-        factoryContract.setImplementation(ZERO_ADDRESS, fromFactoryOwner),
+        ERC721CollectionFactoryV2.new(ZERO_ADDRESS, factoryOwner),
         'MinimalProxyFactoryV2#_setImplementation: INVALID_IMPLEMENTATION'
       )
     })
@@ -215,12 +181,14 @@ describe('Factory V2', function () {
     it('should get a deterministic address on-chain', async function () {
       const salt = randomBytes(32)
       const expectedAddress = await factoryContract.getAddress(salt, user)
+      const proof = keccak256(['bytes32', 'address'], [salt, user])
 
       const { logs } = await factoryContract.createCollection(
         salt,
         getInitData({
           creator: user,
           shouldComplete: true,
+          proofOfCreation: proof,
           creationParams,
         }),
         fromUser
@@ -246,11 +214,14 @@ describe('Factory V2', function () {
         ]
       ).slice(-40)}`.toLowerCase()
 
+      const proof = keccak256(['bytes32', 'address'], [salt, user])
+
       const { logs } = await factoryContract.createCollection(
         salt,
         getInitData({
           creator: user,
           shouldComplete: true,
+          proofOfCreation: proof,
           creationParams,
         }),
         fromUser
@@ -281,6 +252,7 @@ describe('Factory V2', function () {
           user,
           shouldComplete,
           baseURI,
+          SALT,
           items
         ),
         fromUser
@@ -316,6 +288,7 @@ describe('Factory V2', function () {
           user,
           shouldComplete,
           baseURI,
+          SALT,
           ITEMS
         ),
         fromUser
@@ -395,6 +368,7 @@ describe('Factory V2', function () {
           user,
           shouldComplete,
           baseURI,
+          SALT,
           ITEMS
         ),
         fromUser
@@ -409,6 +383,7 @@ describe('Factory V2', function () {
           user,
           shouldComplete,
           baseURI,
+          SALT,
           ITEMS
         ),
         fromUser
@@ -429,6 +404,7 @@ describe('Factory V2', function () {
             ZERO_ADDRESS,
             shouldComplete,
             baseURI,
+            SALT,
             ITEMS
           ),
           fromUser
@@ -447,6 +423,7 @@ describe('Factory V2', function () {
           user,
           shouldComplete,
           baseURI,
+          SALT,
           ITEMS
         ),
         fromUser
@@ -461,12 +438,122 @@ describe('Factory V2', function () {
             user,
             shouldComplete,
             baseURI,
+            SALT,
             ITEMS
           ),
           fromUser
         ),
         'MinimalProxyFactory#createProxy: CREATION_FAILED'
       )
+    })
+  })
+
+  describe('isValidCollection', function () {
+    it('should return true if the collection was created by the factory', async function () {
+      const salt = randomBytes(32)
+      const expectedAddress = await factoryContract.getAddress(salt, user)
+
+      const proof = keccak256(['bytes32', 'address'], [salt, user])
+
+      const { logs } = await factoryContract.createCollection(
+        salt,
+        getInitData({
+          creator: user,
+          shouldComplete: true,
+          proofOfCreation: proof,
+          creationParams,
+        }),
+        fromUser
+      )
+
+      let isValid = await factoryContract.isValidCollection(
+        logs[0].args._address.toLowerCase()
+      )
+      expect(isValid).to.be.equal(true)
+
+      isValid = await factoryContract.isValidCollection(expectedAddress)
+      expect(isValid).to.be.equal(true)
+    })
+
+    it('should return false if the collection was not created by the factory', async function () {
+      const anotherFactoryContract = await ERC721CollectionFactoryV2.new(
+        collectionImplementation.address,
+        factoryOwner
+      )
+
+      const salt = randomBytes(32)
+      const expectedAddress = await anotherFactoryContract.getAddress(
+        salt,
+        user
+      )
+
+      const proof = keccak256(['bytes32', 'address'], [salt, user])
+
+      const { logs } = await anotherFactoryContract.createCollection(
+        salt,
+        getInitData({
+          creator: user,
+          shouldComplete: true,
+          proofOfCreation: proof,
+          creationParams,
+        }),
+        fromUser
+      )
+
+      let isValid = await factoryContract.isValidCollection(
+        logs[0].args._address.toLowerCase()
+      )
+      expect(isValid).to.be.equal(false)
+
+      isValid = await factoryContract.isValidCollection(expectedAddress)
+      expect(isValid).to.be.equal(false)
+    })
+
+    it('should return false if the collection is a scam', async function () {
+      const anotherFactoryContract = await ERC721CollectionFactoryV2.new(
+        collectionImplementation.address,
+        factoryOwner
+      )
+
+      const salt = randomBytes(32)
+      const expectedAddress = await anotherFactoryContract.getAddress(
+        salt,
+        user
+      )
+
+      const proof = keccak256(['bytes32', 'address'], [salt, user])
+
+      // Legit collection
+      await factoryContract.createCollection(
+        salt,
+        getInitData({
+          creator: user,
+          shouldComplete: true,
+          proofOfCreation: proof,
+          creationParams,
+        }),
+        fromUser
+      )
+
+      // Scam using the same proof
+      const { logs } = await anotherFactoryContract.createCollection(
+        salt,
+        getInitData({
+          creator: user,
+          shouldComplete: true,
+          proofOfCreation: proof,
+          creationParams,
+        }),
+        fromUser
+      )
+
+      let isValid = await factoryContract.isValidCollection(
+        logs[0].args._address.toLowerCase()
+      )
+      expect(isValid).to.be.equal(false)
+
+      isValid = await factoryContract.isValidCollection(expectedAddress)
+      expect(isValid).to.be.equal(false)
     })
   })
 })

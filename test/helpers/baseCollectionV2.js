@@ -6,6 +6,7 @@ import {
   BASE_URI,
   RARITIES,
   GRACE_PERIOD,
+  SALT,
   decodeTokenId,
   encodeTokenId,
 } from './collectionV2'
@@ -125,6 +126,7 @@ export function doTest(
           user,
           false,
           BASE_URI,
+          SALT,
           items,
           creationParams
         )
@@ -138,6 +140,7 @@ export function doTest(
         const isApproved_ = await contract.isApproved()
         const isCompleted_ = await contract.isCompleted()
         const isEditable_ = await contract.isEditable()
+        const proofOfCreation = await contract.proofOfCreation()
 
         expect(baseURI_).to.be.equal(BASE_URI)
         expect(creator_).to.be.equal(user)
@@ -148,6 +151,7 @@ export function doTest(
         expect(isApproved_).to.be.equal(true)
         expect(isCompleted_).to.be.equal(false)
         expect(isEditable_).to.be.equal(true)
+        expect(proofOfCreation).to.be.equal(SALT)
 
         const itemLength = await contract.itemsCount()
 
@@ -182,6 +186,7 @@ export function doTest(
           user,
           false,
           BASE_URI,
+          SALT,
           [],
           creationParams
         )
@@ -195,6 +200,7 @@ export function doTest(
         const isApproved_ = await contract.isApproved()
         const isCompleted_ = await contract.isCompleted()
         const isEditable_ = await contract.isEditable()
+        const proofOfCreation = await contract.proofOfCreation()
 
         expect(baseURI_).to.be.equal(BASE_URI)
         expect(creator_).to.be.equal(user)
@@ -205,6 +211,7 @@ export function doTest(
         expect(isApproved_).to.be.equal(true)
         expect(isCompleted_).to.be.equal(false)
         expect(isEditable_).to.be.equal(true)
+        expect(proofOfCreation).to.be.equal(SALT)
 
         const itemLength = await contract.itemsCount()
 
@@ -219,6 +226,7 @@ export function doTest(
           user,
           true,
           BASE_URI,
+          SALT,
           [],
           creationParams
         )
@@ -235,6 +243,7 @@ export function doTest(
           user,
           true,
           BASE_URI,
+          SALT,
           [],
           creationParams
         )
@@ -246,6 +255,7 @@ export function doTest(
             user,
             true,
             BASE_URI,
+            SALT,
             [],
             creationParams
           ),
@@ -264,6 +274,7 @@ export function doTest(
           creator,
           true,
           BASE_URI,
+          SALT,
           items,
           creationParams
         )

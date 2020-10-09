@@ -253,7 +253,6 @@ contract MinimalProxyFactory is Ownable {
     bytes32 public codeHash;
 
     event ProxyCreated(address indexed _address, bytes32 _salt);
-    event ImplementationChanged(address indexed _implementation, bytes32 _codeHash, bytes _code);
 
     constructor(address _implementation) public {
         _setImplementation(_implementation);

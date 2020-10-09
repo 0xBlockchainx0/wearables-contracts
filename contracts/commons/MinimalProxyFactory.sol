@@ -8,15 +8,25 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract MinimalProxyFactory is Ownable {
     using Address for address;
 
-    address public implementation;
+    address public immutable implementation;
     bytes public code;
     bytes32 public codeHash;
 
     event ProxyCreated(address indexed _address, bytes32 _salt);
-    event ImplementationChanged(address indexed _implementation, bytes32 _codeHash, bytes _code);
 
     constructor(address _implementation) public {
-        _setImplementation(_implementation);
+        require(
+            _implementation != address(0) && _implementation.isContract(),
+            "MinimalProxyFactoryV2#_setImplementation: INVALID_IMPLEMENTATION"
+        );
+        // Adapted from https://github.com/optionality/clone-factory/blob/32782f82dfc5a00d103a7e61a17a5dedbd1e8e9d/contracts/CloneFactory.sol
+        code = abi.encodePacked(
+            hex"3d602d80600a3d3981f3363d3d373d3d3d363d73",
+            _implementation,
+            hex"5af43d82803e903d91602b57fd5bf3"
+        );
+        codeHash = keccak256(code);
+        implementation = _implementation;
     }
 
     function createProxy(bytes32 _salt, bytes memory _data) public virtual returns (address addr) {
@@ -41,38 +51,21 @@ contract MinimalProxyFactory is Ownable {
     * @dev Get a deterministics collection.
     */
     function getAddress(bytes32 _salt, address _address) public view returns (address) {
+        return _getAddress(keccak256(abi.encodePacked(_salt, _address)));
+    }
+
+    function _getAddress(bytes32 _salt) internal view returns (address) {
         return address(
             uint256(
                 keccak256(
                     abi.encodePacked(
                         byte(0xff),
                         address(this),
-                        keccak256(abi.encodePacked(_salt, _address)),
+                        _salt,
                         codeHash
                     )
                 )
             )
         );
-    }
-
-    function setImplementation(address _implementation) onlyOwner external {
-        _setImplementation(_implementation);
-    }
-
-    function _setImplementation(address _implementation) internal {
-        require(
-            _implementation != address(0) && _implementation.isContract(),
-            "MinimalProxyFactoryV2#_setImplementation: INVALID_IMPLEMENTATION"
-        );
-        // Adapted from https://github.com/optionality/clone-factory/blob/32782f82dfc5a00d103a7e61a17a5dedbd1e8e9d/contracts/CloneFactory.sol
-        code = abi.encodePacked(
-            hex"3d602d80600a3d3981f3363d3d373d3d3d363d73",
-            _implementation,
-            hex"5af43d82803e903d91602b57fd5bf3"
-        );
-        codeHash = keccak256(code);
-        implementation = _implementation;
-
-        emit ImplementationChanged(implementation, codeHash, code);
     }
 }

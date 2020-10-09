@@ -49,6 +49,7 @@ contract ERC721BaseCollectionV2 is OwnableInitializable, ERC721Initializable, Na
     mapping(uint256 => mapping (address => bool)) public itemMinters;
     mapping(uint256 => mapping (address => bool)) public itemManagers;
 
+    bytes32 public proofOfCreation;
     Item[] public items;
 
     // Status
@@ -88,6 +89,7 @@ contract ERC721BaseCollectionV2 is OwnableInitializable, ERC721Initializable, Na
      * @param _creator - creator address
      * @param _shouldComplete - Whether the collection should be completed by the end of this call.
      * @param _baseURI - base URI for token URIs
+     * @param _proofOfCreation - proof of creation
      * @param _items - items to be added
      */
     function initialize(
@@ -96,6 +98,7 @@ contract ERC721BaseCollectionV2 is OwnableInitializable, ERC721Initializable, Na
         address _creator,
         bool _shouldComplete,
         string memory _baseURI,
+        bytes32 _proofOfCreation,
         Item[] memory _items
     ) public virtual {
         require(!isInitialized, "BCV2#initialize: ALREADY_INITIALIZED");
@@ -122,6 +125,7 @@ contract ERC721BaseCollectionV2 is OwnableInitializable, ERC721Initializable, Na
         isEditable = true;
         isApproved = true;
         createdAt = now;
+        proofOfCreation = _proofOfCreation;
     }
 
     /*

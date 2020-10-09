@@ -1,5 +1,9 @@
+import { keccak256 } from '@ethersproject/solidity'
+
 export const BENEFICIARY_ADDRESS = web3.utils.randomHex(20)
 export const OTHER_BENEFICIARY_ADDRESS = web3.utils.randomHex(20)
+
+export const SALT = web3.utils.randomHex(32)
 
 export const EMPTY_HASH =
   '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -100,9 +104,12 @@ export async function createDummyFactory(owner) {
 }
 
 export async function createDummyCollection(factory, options) {
+  const salt = web3.utils.randomHex(32)
+  const proof = keccak256(['bytes32', 'address'], [salt, options.creator])
+
   const { logs } = await factory.createCollection(
     web3.utils.randomHex(32),
-    getInitData(options)
+    getInitData({ ...options, proofOfCreation: proof })
   )
 
   const ERC721Collection = artifacts.require('ERC721CollectionV2')
@@ -144,6 +151,11 @@ export function getInitData(options) {
           internalType: 'string',
           name: '_baseURI',
           type: 'string',
+        },
+        {
+          internalType: 'bytes32',
+          name: '_proofOfCreation',
+          type: 'bytes32',
         },
         {
           components: [
@@ -194,6 +206,7 @@ export function getInitData(options) {
       options.creator,
       options.shouldComplete,
       options.baseURI || BASE_URI,
+      options.proofOfCreation,
       options.items || ITEMS,
     ]
   )

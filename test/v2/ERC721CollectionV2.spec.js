@@ -6,6 +6,7 @@ import {
   ITEMS,
   BASE_URI,
   GRACE_PERIOD,
+  SALT,
   encodeTokenId,
 } from '../helpers/collectionV2'
 
@@ -38,6 +39,7 @@ describe('Collection V2', function () {
         creator,
         shouldComplete,
         BASE_URI,
+        SALT,
         ITEMS,
         creationParams
       )
