@@ -325,7 +325,7 @@ interface IERC721Collection {
     function wearablesCount() external view returns (uint256);
 }
 
-// File: contracts/markets/BurningStore.sol
+// File: contracts/markets/v1/CollectionStoreV1.sol
 
 // SPDX-License-Identifier: MIT
 
@@ -337,10 +337,11 @@ pragma experimental ABIEncoderV2;
 
 
 
-contract BurningStore is Ownable {
+contract CollectionStoreV1 is Ownable {
     using SafeMath for uint256;
 
     struct CollectionData {
+        address beneficiary;
         mapping (uint256 => uint256) pricePerOptionId;
         mapping (uint256 => uint256) availableQtyPerOptionId;
     }
@@ -350,12 +351,13 @@ contract BurningStore is Ownable {
     mapping (address => CollectionData) collectionsData;
 
     event Bought(address indexed _collectionAddress, uint256[] _optionIds, address _beneficiary, uint256 _price);
-    event SetCollectionData(address indexed _collectionAddress, uint256[] _optionIds, uint256[] _availableQtys, uint256[] _prices);
+    event SetCollectionData(address indexed _collectionAddress, address _collectionBeneficiary, uint256[] _optionIds, uint256[] _availableQtys, uint256[] _prices);
 
     /**
-    * @dev Constructor of the contract.
+    * @notice Constructor of the contract.
     * @param _acceptedToken - Address of the ERC20 token accepted
     * @param _collectionAddresses - collection addresses
+    * @param _collectionBeneficiaries - collection beneficiaries
     * @param _collectionOptionIds - collection option ids
     * @param _collectionAvailableQtys - collection available qtys for sale
     * @param _collectionPrices - collection prices
@@ -363,6 +365,7 @@ contract BurningStore is Ownable {
     constructor(
         IERC20 _acceptedToken,
         address[] memory _collectionAddresses,
+        address[] memory _collectionBeneficiaries,
         uint256[][] memory _collectionOptionIds,
         uint256[][] memory _collectionAvailableQtys,
         uint256[][] memory _collectionPrices
@@ -371,15 +374,19 @@ contract BurningStore is Ownable {
         acceptedToken = _acceptedToken;
 
         for (uint256 i = 0; i < _collectionAddresses.length; i++) {
-            _setCollectionData(_collectionAddresses[i], _collectionOptionIds[i], _collectionAvailableQtys[i], _collectionPrices[i]);
+            _setCollectionData(
+                _collectionAddresses[i],
+                _collectionBeneficiaries[i],
+                _collectionOptionIds[i],
+                _collectionAvailableQtys[i],
+                _collectionPrices[i]
+            );
         }
     }
 
     /**
-    * @dev Donate in exchange for NFTs.
-    * @notice that there is a maximum amount of NFTs that can be issued per call.
-    * If the donation greater than `price * maxNFTsPerCall`, all the donation will be used and
-    * a maximum of `maxNFTsPerCall` will be issued.
+    * @notice Buy Wearables NFTs.
+    * @dev that there is a maximum amount of NFTs that can be issued per call.
     * @param _collectionAddress - collectionn address
     * @param _optionIds - collection option id
     * @param _beneficiary - beneficiary address
@@ -414,17 +421,11 @@ contract BurningStore is Ownable {
             collection.availableQtyPerOptionId[optionId] = collection.availableQtyPerOptionId[optionId].sub(1);
         }
 
-        // Check if the sender has at least `price` and the contract has allowance to use on its behalf
-        _requireBalance(msg.sender, finalPrice);
-
-        // Debit `price` from sender
+        // Transfer `price` from sender to collection beneficiary
         require(
-            acceptedToken.transferFrom(msg.sender, address(this), finalPrice),
-            "Transfering finalPrice to this contract failed"
+            acceptedToken.transferFrom(msg.sender, collection.beneficiary, finalPrice),
+            "CSV1#buy: TRANSFER_TOKENS_FAILED"
         );
-
-        // Burn it
-        acceptedToken.burn(finalPrice);
 
         // Mint NFT
         IERC721Collection(_collectionAddress).issueTokens(beneficiaries, items);
@@ -433,7 +434,7 @@ contract BurningStore is Ownable {
     }
 
     /**
-    * @dev Returns whether the wearable can be minted.
+    * @notice Returns whether the wearable can be minted.
     * @param _collectionAddress - collectionn address
     * @param _optionId - item option id
     * @return whether a wearable can be minted
@@ -445,7 +446,7 @@ contract BurningStore is Ownable {
     }
 
     /**
-     * @dev Returns a wearable's available supply .
+     * @notice Returns a wearable's available supply .
      * Throws if the option ID does not exist. May return 0.
      * @param _collectionAddress - collectionn address
      * @param _optionId - item option id
@@ -458,7 +459,7 @@ contract BurningStore is Ownable {
     }
 
     /**
-    * @dev Get item id by option id
+    * @notice Get item id by option id
     * @param _collectionAddress - collectionn address
     * @param _optionId - collection option id
     * @return string of the item id
@@ -478,73 +479,64 @@ contract BurningStore is Ownable {
     }
 
     /**
-    * @dev Get collection data by option id
+    * @notice Get collection data by option id
     * @param _collectionAddress - collectionn address
     * @param _optionId - collection option id
+    * @return beneficiary - collection beneficiary
     * @return availableQty - collection option id available qty
     * @return price - collection option id price
     */
     function collectionData(address _collectionAddress, uint256 _optionId) external view returns (
-        uint256 availableQty, uint256 price
+        address beneficiary, uint256 availableQty, uint256 price
     ) {
+        beneficiary = collectionsData[_collectionAddress].beneficiary;
         availableQty = collectionsData[_collectionAddress].availableQtyPerOptionId[_optionId];
         price = collectionsData[_collectionAddress].pricePerOptionId[_optionId];
     }
 
     /**
-    * @dev Sets the beneficiary address where the sales amount
+    * @notice Sets the beneficiary address where the sales amount
     *  will be transferred on each sale for a collection
     * @param _collectionAddress - collectionn address
+    * @param _collectionBeneficiary - collection beneficiary
     * @param _collectionOptionIds - collection option ids
     * @param _collectionAvailableQtys - collection available qtys for sale
     * @param _collectionPrices - collectionn prices
     */
     function setCollectionData(
         address _collectionAddress,
+        address _collectionBeneficiary,
         uint256[] calldata _collectionOptionIds,
         uint256[] calldata _collectionAvailableQtys,
         uint256[] calldata _collectionPrices
     ) external onlyOwner {
-        _setCollectionData(_collectionAddress, _collectionOptionIds, _collectionAvailableQtys, _collectionPrices);
+        _setCollectionData(_collectionAddress, _collectionBeneficiary, _collectionOptionIds, _collectionAvailableQtys, _collectionPrices);
     }
 
     /**
-    * @dev Sets the beneficiary address where the sales amount
+    * @notice Sets the beneficiary address where the sales amount
     *  will be transferred on each sale for a collection
     * @param _collectionAddress - collectionn address
+    * @param _collectionBeneficiary - collectionn beneficiary
     * @param _collectionOptionIds - collection option ids
     * @param _collectionAvailableQtys - collection available qtys for sale
     * @param _collectionPrices - collectionn prices
     */
     function _setCollectionData(
         address _collectionAddress,
+        address _collectionBeneficiary,
         uint256[] memory _collectionOptionIds,
         uint256[] memory _collectionAvailableQtys,
         uint256[] memory _collectionPrices
     ) internal {
         CollectionData storage collection = collectionsData[_collectionAddress];
+        collection.beneficiary = _collectionBeneficiary;
 
         for (uint256 i = 0; i < _collectionOptionIds.length; i++) {
             collection.availableQtyPerOptionId[_collectionOptionIds[i]] = _collectionAvailableQtys[i];
             collection.pricePerOptionId[_collectionOptionIds[i]] = _collectionPrices[i];
         }
 
-        emit SetCollectionData(_collectionAddress, _collectionOptionIds, _collectionAvailableQtys, _collectionPrices);
-    }
-
-    /**
-    * @dev Validate if a user has balance and the contract has enough allowance
-    * to use user's accepted token on his belhalf
-    * @param _user - address of the user
-    */
-    function _requireBalance(address _user, uint256 _price) internal view {
-        require(
-            acceptedToken.balanceOf(_user) >= _price,
-            "Insufficient funds"
-        );
-        require(
-            acceptedToken.allowance(_user, address(this)) >= _price,
-            "The contract is not authorized to use the accepted token on sender behalf"
-        );
+        emit SetCollectionData(_collectionAddress, _collectionBeneficiary, _collectionOptionIds, _collectionAvailableQtys, _collectionPrices);
     }
 }
