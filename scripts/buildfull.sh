@@ -8,6 +8,7 @@ ERC721_COLLECTION_FACTORY_V2=ERC721CollectionFactoryV2.sol
 
 DONATION=Donation.sol
 BURNING_STORE=BurningStore.sol
+COLLECTION_V1_STORE=CollectionStoreV1.sol
 COLLECTION_V2_STORE=CollectionStore.sol
 
 
@@ -19,6 +20,7 @@ npx truffle-flattener contracts/factories/v1/$ERC721_COLLECTION_FACTORY > $OUTPU
 npx truffle-flattener contracts/markets/$DONATION > $OUTPUT/$DONATION
 npx truffle-flattener contracts/markets/$BURNING_STORE > $OUTPUT/$BURNING_STORE
 npx truffle-flattener contracts/markets/v2/$COLLECTION_V2_STORE > $OUTPUT/$COLLECTION_V2_STORE
+npx truffle-flattener contracts/markets/v1/$COLLECTION_V1_STORE > $OUTPUT/$COLLECTION_V1_STORE
 npx truffle-flattener contracts/collections/v2/$ERC721_COLLECTION_V2 > $OUTPUT/$ERC721_COLLECTION_V2
 npx truffle-flattener contracts/factories/v2/$ERC721_COLLECTION_FACTORY_V2 > $OUTPUT/$ERC721_COLLECTION_FACTORY_V2
 
