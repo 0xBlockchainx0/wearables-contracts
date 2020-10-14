@@ -28,7 +28,6 @@ abstract contract Context {
 
 // File: @openzeppelin/contracts/access/Ownable.sol
 
-// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.0;
 
@@ -98,7 +97,6 @@ contract Ownable is Context {
 
 // File: @openzeppelin/contracts/math/SafeMath.sol
 
-// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.0;
 
@@ -260,7 +258,6 @@ library SafeMath {
 
 // File: @openzeppelin/contracts/math/Math.sol
 
-// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.0;
 
@@ -294,7 +291,6 @@ library Math {
 
 // File: contracts/interfaces/IERC20.sol
 
-// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.12;
 
@@ -309,7 +305,6 @@ interface IERC20 {
 
 // File: contracts/interfaces/IERC721Collection.sol
 
-// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.12;
 
@@ -327,7 +322,6 @@ interface IERC721Collection {
 
 // File: contracts/markets/v1/CollectionStoreV1.sol
 
-// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
