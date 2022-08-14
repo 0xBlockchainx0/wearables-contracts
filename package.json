@@ -34,7 +34,7 @@
     "@nomiclabs/hardhat-ganache": "^2.0.0",
     "@nomiclabs/hardhat-truffle5": "^2.0.0",
     "@nomiclabs/hardhat-web3": "^2.0.0",
-    "@openzeppelin/contracts": "^3.4.0",
+    "@openzeppelin/contracts": "^4.7.2",
     "babel-cli": "^6.26.0",
     "babel-eslint": "^8.2.1",
     "babel-plugin-transform-object-rest-spread": "^6.26.0",
